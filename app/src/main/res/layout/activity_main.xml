@@ -7,16 +7,30 @@
     tools:context=".MainActivity">
 
     <ru.shepetov.mycustomviewapp.MyRatingBar
+        android:id="@+id/myRatingBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:maxScore="8"
-        app:minScore="3"
-        app:score="4"
-        app:starPadding="5"
         android:layout_margin="20dp"
         app:activeDrawable="@drawable/ic_star"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:maxScore="8"
+        app:minScore="3"
+        app:score="4.6"
+        app:starPadding="5" />
 
+    <ru.shepetov.mycustomviewapp.MyRatingBar
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="20dp"
+        app:activeDrawable="@drawable/ic_star"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/myRatingBar"
+        app:maxScore="8"
+        app:minScore="3"
+        app:score="4.6"
+        app:starPadding="5"
+        app:isIndicator="true"/>
 </androidx.constraintlayout.widget.ConstraintLayout>

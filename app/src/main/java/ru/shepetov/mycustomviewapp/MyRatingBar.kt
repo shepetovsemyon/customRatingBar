@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import androidx.annotation.AttrRes
@@ -18,20 +17,21 @@ class MyRatingBar @JvmOverloads constructor(
 ) : View(context, attributeSet, defAttrStyle) {
     val paint = Paint()
 
-    var maxScore = 5
+    var maxScore = 5f
         set(value) {
-            field = if (value > 0) value else 1
+            field = if (value > 0) value else 1f
         }
 
-    var minScore = 0
+    var minScore = 0f
     var activeDrawable: Drawable? = null
     var padding = 10
     var starWidth = 10
-
+    var isIndicator = true
     var score = minScore
         private set
 
     private var rects = listOf<Rect>()
+    private val indicatorRect = Rect()
     private var isOnPressed = false
     private var activeBitmap: Bitmap? = null
 
@@ -61,11 +61,12 @@ class MyRatingBar @JvmOverloads constructor(
             context.obtainStyledAttributes(it, R.styleable.MyRatingBar)
         }
 
-        minScore = array?.getInt(R.styleable.MyRatingBar_minScore, 0) ?: 0
-        maxScore = array?.getInt(R.styleable.MyRatingBar_maxScore, 5) ?: 5
-        score = array?.getInt(R.styleable.MyRatingBar_score, 0) ?: 0
+        minScore = array?.getFloat(R.styleable.MyRatingBar_minScore, 0f) ?: 0f
+        maxScore = array?.getFloat(R.styleable.MyRatingBar_maxScore, 5f) ?: 5f
+        score = array?.getFloat(R.styleable.MyRatingBar_score, 0f) ?: 0f
         activeDrawable = array?.getDrawable(R.styleable.MyRatingBar_activeDrawable)
         padding = array?.getInt(R.styleable.MyRatingBar_starPadding, 10) ?: 10
+        isIndicator = array?.getBoolean(R.styleable.MyRatingBar_isIndicator, false) ?: false
 
         activeBitmap = activeDrawable?.toBitmap()
 
@@ -74,7 +75,7 @@ class MyRatingBar @JvmOverloads constructor(
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = getMeasurementSize(widthMeasureSpec, DEFAULT_SIZE)
-        starWidth = (width - padding * (maxScore - 1)) / maxScore
+        starWidth = ((width - padding * (maxScore - 1)) / maxScore).toInt()
 
         val height = getMeasurementSize(heightMeasureSpec, starWidth)
 
@@ -84,8 +85,7 @@ class MyRatingBar @JvmOverloads constructor(
     }
 
     private fun initView(width: Int, height: Int) {
-
-        rects = (0 until maxScore).map { i ->
+        rects = (0 until maxScore.toInt()).map { i ->
             val left = i * (padding + starWidth)
             Rect(left, 0, left + starWidth, height)
         }.toList()
@@ -107,6 +107,8 @@ class MyRatingBar @JvmOverloads constructor(
             true
         )
 
+        if (isIndicator) return
+
         setOnTouchListener { _, event ->
             val x = event.x.toInt()
             val y = event.y.toInt()
@@ -119,7 +121,7 @@ class MyRatingBar @JvmOverloads constructor(
                 MotionEvent.ACTION_MOVE -> {
                     rects.forEachIndexed { i, rect ->
                         if (rect.contains(x, y)) {
-                            score = i
+                            score = i.toFloat()
                             invalidate()
                         }
                     }
@@ -127,7 +129,7 @@ class MyRatingBar @JvmOverloads constructor(
                 MotionEvent.ACTION_UP -> {
                     rects.forEachIndexed { i, rect ->
                         if (rect.contains(x, y)) {
-                            score = i
+                            score = i.toFloat()
                             invalidate()
                         }
                     }
@@ -143,6 +145,22 @@ class MyRatingBar @JvmOverloads constructor(
     override fun draw(canvas: Canvas?) {
         super.draw(canvas)
 
+        if (isIndicator) {
+            rects.forEach{ rect ->
+                canvas?.drawBitmap(activeBitmap!!, rect.left.toFloat(), rect.top.toFloat(), this.defaultPaint)
+            }
+
+            indicatorRect.set(0, 0, (width * (score / maxScore)).toInt(), height)
+
+            canvas?.clipRect(indicatorRect)
+
+            rects.forEach{ rect ->
+                canvas?.drawBitmap(activeBitmap!!, rect.left.toFloat(), rect.top.toFloat(), this.paint)
+            }
+
+            return
+        }
+
         rects.forEachIndexed { i, rect ->
 
             val paint = when {
@@ -153,6 +171,7 @@ class MyRatingBar @JvmOverloads constructor(
 
             canvas?.drawBitmap(activeBitmap!!, rect.left.toFloat(), rect.top.toFloat(), paint)
         }
+
     }
 
     private companion object {

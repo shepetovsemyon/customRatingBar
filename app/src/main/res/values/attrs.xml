@@ -9,11 +9,12 @@
     </declare-styleable>
 
     <declare-styleable name="MyRatingBar">
-        <attr name="minScore" format="integer" />
-        <attr name="maxScore" format="integer" />
+        <attr name="minScore" format="float" />
+        <attr name="maxScore" format="float" />
         <attr name="activeDrawable" format="reference" />
-        <attr name="score" format="integer" />
+        <attr name="score" format="float" />
         <attr name="starPadding" format="integer" />
+        <attr name="isIndicator" format="boolean" />
     </declare-styleable>
 </resources>
 
