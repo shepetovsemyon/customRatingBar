@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <declare-styleable name="CustomView1">
+        <attr name="filterAvailable" format="boolean" />
+        <attr name="filterText" format="string" />
+        <attr name="filterColor" format="color" />
+        <attr name="filterStyle" format="reference" />
+    </declare-styleable>
+
+    <declare-styleable name="MyRatingBar">
+        <attr name="minScore" format="integer" />
+        <attr name="maxScore" format="integer" />
+        <attr name="activeDrawable" format="reference" />
+        <attr name="score" format="integer" />
+        <attr name="starPadding" format="integer" />
+    </declare-styleable>
+</resources>
+
+<!--
+var maxScore = 5
+        set(value) {
+            field = if (value > 0) value else 1
+        }
+
+    var minScore = 0
+
+    var activeDrawable: Drawable? = null
+    var defaultDrawable: Drawable? = null
+
+    var padding = 10
+
+    var starWidth = 10
+
+    var score = minScore
+    -->
