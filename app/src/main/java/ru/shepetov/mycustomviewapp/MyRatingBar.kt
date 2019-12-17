@@ -1,40 +1,71 @@
 package ru.shepetov.mycustomviewapp
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import androidx.annotation.AttrRes
 import androidx.core.graphics.drawable.toBitmap
 
+private const val TAG = "MyRatingBar"
 
 class MyRatingBar @JvmOverloads constructor(
     context: Context,
     attributeSet: AttributeSet? = null,
     @AttrRes defAttrStyle: Int = R.attr.filterStyle
 ) : View(context, attributeSet, defAttrStyle) {
-    val paint = Paint()
-
-    var maxScore = 5f
+    var maxScore = MAX_SCORE_DEFAULT
+        get() = if (field >= minScore) field else minScore
         set(value) {
             field = if (value > 0) value else 1f
         }
 
-    var minScore = 0f
-    var activeDrawable: Drawable? = null
-    var padding = 10
-    var starWidth = 10
-    var isIndicator = true
-    var score = minScore
-        private set
+    var minScore = MIN_SCORE_DEFAULT
+        set(value) {
+            field = if (value >= 0) value else 0f
+        }
 
+    var maxScale = MAX_SCALE_DEFAULT
+
+    var activeDrawable: Drawable? = null
+    var paddingStars = PADDING_STARS_DEFAULT
+    var isIndicator = IS_INDICATOR_DEFAULT
+    var score = SCORE_DEFAULT
+        private set(value) {
+            field = value
+            onScoreChanged?.invoke(value.toInt())
+        }
+
+    private var onScoreChanged: ((Int) -> Unit)? = null
+    private var onScoreSubmit: ((Int) -> Unit)? = null
+
+    fun setOnScoreChanged(block: (Int) -> Unit) {
+        onScoreChanged = block
+    }
+
+    fun setOnScoreSubmit(block: (Int) -> Unit) {
+        onScoreSubmit = block
+    }
+
+    private var starWidth = 10
+    private var rectsWithPaddings = listOf<Rect>()
     private var rects = listOf<Rect>()
     private val indicatorRect = Rect()
+
     private var isOnPressed = false
+        set(value) {
+            field = value
+            if (field) return
+            onScoreSubmit?.invoke(score.toInt())
+        }
+
     private var activeBitmap: Bitmap? = null
 
+    private val activePaint = Paint()
     private val defaultPaint = Paint().apply {
         val defaultColorMatrix = ColorMatrix().apply {
             setSaturation(0f)
@@ -56,28 +87,48 @@ class MyRatingBar @JvmOverloads constructor(
         colorFilter = ColorMatrixColorFilter(defaultColorMatrix)
     }
 
+    private var scale = 1f
+    private val animatorIn = ValueAnimator.ofFloat(1f, maxScale).apply {
+        addUpdateListener {
+            scale = it.animatedValue as Float
+            invalidate()
+        }
+    }
+
+    private val animatorOut = ValueAnimator.ofFloat(maxScale, 1f).apply {
+        addUpdateListener {
+            scale = it.animatedValue as Float
+            invalidate()
+        }
+    }
+
     init {
         val array = attributeSet?.let {
             context.obtainStyledAttributes(it, R.styleable.MyRatingBar)
+        }.apply {
+            if (this == null) return@apply
+
+            minScore = getFloat(R.styleable.MyRatingBar_minScore, MIN_SCORE_DEFAULT)
+            maxScore = getFloat(R.styleable.MyRatingBar_maxScore, MAX_SCORE_DEFAULT)
+            score = getFloat(R.styleable.MyRatingBar_score, SCORE_DEFAULT)
+            activeDrawable = getDrawable(R.styleable.MyRatingBar_activeDrawable)
+            paddingStars = getDimension(R.styleable.MyRatingBar_starPadding, PADDING_STARS_DEFAULT)
+            isIndicator = getBoolean(R.styleable.MyRatingBar_isIndicator, IS_INDICATOR_DEFAULT)
+            maxScale = getFloat(R.styleable.MyRatingBar_maxScale, MAX_SCALE_DEFAULT)
         }
 
-        minScore = array?.getFloat(R.styleable.MyRatingBar_minScore, 0f) ?: 0f
-        maxScore = array?.getFloat(R.styleable.MyRatingBar_maxScore, 5f) ?: 5f
-        score = array?.getFloat(R.styleable.MyRatingBar_score, 0f) ?: 0f
-        activeDrawable = array?.getDrawable(R.styleable.MyRatingBar_activeDrawable)
-        padding = array?.getInt(R.styleable.MyRatingBar_starPadding, 10) ?: 10
-        isIndicator = array?.getBoolean(R.styleable.MyRatingBar_isIndicator, false) ?: false
+        array?.recycle()
 
         activeBitmap = activeDrawable?.toBitmap()
-
-        array?.recycle()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val width = getMeasurementSize(widthMeasureSpec, DEFAULT_SIZE)
-        starWidth = ((width - padding * (maxScore - 1)) / maxScore).toInt()
+        val width = getMeasurementSize(widthMeasureSpec, SIZE_DEFAULT)
+        val paddingsHorisontal = paddingStart + paddingEnd
+        starWidth =
+            ((width - paddingsHorisontal - paddingStars * (maxScore - 1)) / maxScore).toInt()
 
-        val height = getMeasurementSize(heightMeasureSpec, starWidth)
+        val height = getMeasurementSize(heightMeasureSpec, starWidth + paddingsHorisontal)
 
         setMeasuredDimension(width, height)
 
@@ -85,9 +136,20 @@ class MyRatingBar @JvmOverloads constructor(
     }
 
     private fun initView(width: Int, height: Int) {
+        rectsWithPaddings = (0 until maxScore.toInt()).map { i ->
+            val left = i * (paddingStars + starWidth) + paddingStart / 2
+            val top = 0
+            val right = left + paddingStars + starWidth
+            val bottom = height
+            Rect(left.toInt(), top, right.toInt(), bottom)
+        }.toList()
+
         rects = (0 until maxScore.toInt()).map { i ->
-            val left = i * (padding + starWidth)
-            Rect(left, 0, left + starWidth, height)
+            val left = i * (paddingStars + starWidth) + paddingStart
+            val top = paddingTop
+            val right = left + starWidth
+            val bottom = height - paddingBottom
+            Rect(left.toInt(), top, right.toInt(), bottom)
         }.toList()
 
         val matrixActive = Matrix().apply {
@@ -109,32 +171,47 @@ class MyRatingBar @JvmOverloads constructor(
 
         if (isIndicator) return
 
+        var lastIndex = -1
+
         setOnTouchListener { _, event ->
             val x = event.x.toInt()
             val y = event.y.toInt()
 
+//            Log.d(TAG, event.action.toString())
+
             when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
+                MotionEvent.ACTION_MOVE, MotionEvent.ACTION_DOWN -> {
                     isOnPressed = true
-                    invalidate()
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    rects.forEachIndexed { i, rect ->
-                        if (rect.contains(x, y)) {
-                            score = i.toFloat()
-                            invalidate()
-                        }
+
+                    var i = rectsWithPaddings.indexOfFirst {
+                        it.contains(x, y)
                     }
-                }
-                MotionEvent.ACTION_UP -> {
-                    rects.forEachIndexed { i, rect ->
-                        if (rect.contains(x, y)) {
-                            score = i.toFloat()
-                            invalidate()
-                        }
+
+                    if (i < minScore) i = minScore.toInt()
+
+                    if (event.action == MotionEvent.ACTION_MOVE
+                        && (i == -1 || i == lastIndex)
+                    ) {
+                        return@setOnTouchListener true
                     }
+
+                    lastIndex = i
+                    score = i.toFloat() + 1
+                    animatorIn.start()
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    val i = rectsWithPaddings.indexOfFirst {
+                        it.contains(x, y)
+                    }
+
+                    score = if (i >= minScore) {
+                        i.toFloat() + 1
+                    } else {
+                        minScore
+                    }
+
                     isOnPressed = false
-                    invalidate()
+                    animatorOut.start()
                 }
             }
 
@@ -144,37 +221,77 @@ class MyRatingBar @JvmOverloads constructor(
 
     override fun draw(canvas: Canvas?) {
         super.draw(canvas)
+        @Suppress("NAME_SHADOWING") val canvas = canvas ?: return
 
         if (isIndicator) {
-            rects.forEach{ rect ->
-                canvas?.drawBitmap(activeBitmap!!, rect.left.toFloat(), rect.top.toFloat(), this.defaultPaint)
-            }
-
-            indicatorRect.set(0, 0, (width * (score / maxScore)).toInt(), height)
-
-            canvas?.clipRect(indicatorRect)
-
-            rects.forEach{ rect ->
-                canvas?.drawBitmap(activeBitmap!!, rect.left.toFloat(), rect.top.toFloat(), this.paint)
-            }
-
+            drawIndicator(canvas)
             return
         }
 
-        rects.forEachIndexed { i, rect ->
+        drawNonIndicator(canvas)
+    }
 
-            val paint = when {
-                i <= score && isOnPressed -> this.pressedPaint
-                i <= score && !isOnPressed -> this.paint
-                else -> this.defaultPaint
-            }
-
-            canvas?.drawBitmap(activeBitmap!!, rect.left.toFloat(), rect.top.toFloat(), paint)
+    private fun drawIndicator(canvas: Canvas) {
+        rects.forEach { rect ->
+            canvas.drawBitmap(
+                activeBitmap!!,
+                rect.left.toFloat(),
+                rect.top.toFloat(),
+                this.defaultPaint
+            )
         }
 
+        indicatorRect.set(0, 0, (width * (score / maxScore)).toInt(), height)
+
+        canvas.clipRect(indicatorRect)
+
+        rects.forEach { rect ->
+            canvas.drawBitmap(
+                activeBitmap!!,
+                rect.left.toFloat(),
+                rect.top.toFloat(),
+                this.activePaint
+            )
+        }
+    }
+
+    private fun drawNonIndicator(canvas: Canvas) = rects.mapIndexed { i, rect ->
+
+        if (scale != 1f && i == score.toInt() - 1) {
+            return@mapIndexed rect
+        }
+
+        val paint = when {
+            i < score && isOnPressed -> this.pressedPaint
+            i < score && !isOnPressed && score != 0f-> this.activePaint
+            else -> this.defaultPaint
+        }
+
+        canvas.drawBitmap(activeBitmap!!, rect.left.toFloat(), rect.top.toFloat(), paint)
+        return@mapIndexed rect
+    }.getOrNull(score.toInt() - 1)?.apply {
+        if (scale == 1f) return@apply
+
+        canvas.apply {
+            save()
+            scale(
+                scale,
+                scale,
+                left.toFloat() + starWidth / 2 + paddingStart,
+                starWidth / 2f + paddingTop
+            )
+            drawBitmap(activeBitmap!!, left.toFloat(), top.toFloat(), activePaint)
+            restore()
+        }
     }
 
     private companion object {
-        const val DEFAULT_SIZE = 500
+        const val SIZE_DEFAULT = 100
+        const val MIN_SCORE_DEFAULT = 0f
+        const val MAX_SCORE_DEFAULT = 5f
+        const val SCORE_DEFAULT = 0f
+        const val PADDING_STARS_DEFAULT = 0f
+        const val MAX_SCALE_DEFAULT = 1.35f
+        const val IS_INDICATOR_DEFAULT = false
     }
 }

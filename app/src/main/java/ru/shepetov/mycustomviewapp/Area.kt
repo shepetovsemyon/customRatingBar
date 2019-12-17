@@ -7,6 +7,7 @@ import android.graphics.Point
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+/*
 
 class Area(private val points: List<Point>, val center: Point = Point(0, 0)) {
     var angleGrad = 0f
@@ -26,8 +27,6 @@ class Area(private val points: List<Point>, val center: Point = Point(0, 0)) {
 
     private var _points = listOf<Point>()
 
-   // private var dots = mutableListOf<Point>()
-
     fun prepare() {
         _points = updatePoints()
     }
@@ -40,7 +39,6 @@ class Area(private val points: List<Point>, val center: Point = Point(0, 0)) {
 
         _points.forEachIndexed { i, p ->
             if (i == 0) return@forEachIndexed
-//            paint.color = colors[i - 1]
 
             canvas.drawLine(x0.toFloat(), y0.toFloat(), p.x.toFloat(), p.y.toFloat(), paint)
             x0 = p.x
@@ -55,10 +53,6 @@ class Area(private val points: List<Point>, val center: Point = Point(0, 0)) {
             _points[0].y.toFloat(),
             paint
         )
-
-//        dots.forEach {
-//            canvas.drawPoint(it.x.toFloat(), it.y.toFloat(), paint)
-//        }
     }
 
     private fun updatePoints(): List<Point> = points.map {
@@ -76,8 +70,6 @@ class Area(private val points: List<Point>, val center: Point = Point(0, 0)) {
         var count = 0
 
         for (i in points.indices) {
-            val crossPoint = cross(i, x, y) ?: continue
-       //     dots.add(crossPoint)
             count++
         }
 
@@ -122,4 +114,4 @@ class Area(private val points: List<Point>, val center: Point = Point(0, 0)) {
             (k * x + b).toInt()
         }
     }
-}
+}*/

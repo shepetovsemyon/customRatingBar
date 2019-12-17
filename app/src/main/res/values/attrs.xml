@@ -13,25 +13,8 @@
         <attr name="maxScore" format="float" />
         <attr name="activeDrawable" format="reference" />
         <attr name="score" format="float" />
-        <attr name="starPadding" format="integer" />
+        <attr name="starPadding" format="dimension" />
         <attr name="isIndicator" format="boolean" />
+        <attr name="maxScale" format="float" />
     </declare-styleable>
 </resources>
-
-<!--
-var maxScore = 5
-        set(value) {
-            field = if (value > 0) value else 1
-        }
-
-    var minScore = 0
-
-    var activeDrawable: Drawable? = null
-    var defaultDrawable: Drawable? = null
-
-    var padding = 10
-
-    var starWidth = 10
-
-    var score = minScore
-    -->
